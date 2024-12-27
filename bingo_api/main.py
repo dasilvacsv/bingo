@@ -47,29 +47,41 @@ def process_image(image_bytes):
     # Crop the image
     roi = img[top:bottom, left:right]
     
+    # Add some padding to the coordinates
+    pad = 10  # pixels of padding
+    top = max(0, int(height * 0.070) - pad)
+    bottom = min(height, int(height * 0.187) + pad)
+    left = max(0, int(width * 0.792) - pad)
+    right = min(width, int(width * 0.856) + pad)
+    
+    # Crop the image
+    roi = img[top:bottom, left:right]
+    
     # Convert to grayscale
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
     
-    # Apply Gaussian blur to reduce noise
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    # Save the grayscale image for debugging
+    cv2.imwrite(f"{debug_folder}/01_gray.png", gray)
     
-    # Use adaptive thresholding to handle the varying background
-    thresh = cv2.adaptiveThreshold(
-        blurred,
-        255,
-        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY_INV,
-        11,
-        2
-    )
+    # Apply binary thresholding
+    _, thresh1 = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+    cv2.imwrite(f"{debug_folder}/02_binary.png", thresh1)
     
-    # Clean up noise
-    kernel = np.ones((2,2), np.uint8)
-    mask = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+    # Apply Otsu's thresholding
+    _, thresh2 = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    cv2.imwrite(f"{debug_folder}/03_otsu.png", thresh2)
     
-    # Save additional debug image
-    cv2.imwrite('debug/gray.png', gray)
-    cv2.imwrite('debug/thresh.png', thresh)
+    # Try both thresholded images with OCR
+    custom_config = r'--psm 7 --oem 3 -c tessedit_char_whitelist=0123456789'
+    
+    number1 = pytesseract.image_to_string(thresh1, config=custom_config).strip()
+    number2 = pytesseract.image_to_string(thresh2, config=custom_config).strip()
+    
+    print(f"Binary threshold OCR result: {number1}")
+    print(f"Otsu threshold OCR result: {number2}")
+    
+    # Use the result that gave us digits
+    number = number1 if number1.isdigit() else number2 if number2.isdigit() else ""
     
     # Save debug images
     debug_folder = "debug"
