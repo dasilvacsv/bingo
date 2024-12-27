@@ -71,6 +71,10 @@ def process_image(image_bytes):
     _, thresh2 = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     cv2.imwrite(f"{debug_folder}/03_otsu.png", thresh2)
     
+    # Create a debug folder
+    debug_folder = "debug"
+    os.makedirs(debug_folder, exist_ok=True)
+
     # Try both thresholded images with OCR
     custom_config = r'--psm 7 --oem 3 -c tessedit_char_whitelist=0123456789'
     
