@@ -25,27 +25,42 @@ def process_image(image_bytes):
     # Get dimensions
     height, width = img.shape[:2]
     
-    # Define the region for the big number (adjusted for the circular display)
-    top = int(height * 0.05)
-    bottom = int(height * 0.20)  # Reduced to focus on the circle
-    left = int(width * 0.15)     # Moved left to catch the full circle
-    right = int(width * 0.35)    # Adjusted width accordingly
+    # Define the region for the big number (adjusted specifically for the circular display)
+    top = int(height * 0.02)     # Start higher up
+    bottom = int(height * 0.15)   # Just enough to capture the circle
+    left = int(width * 0.05)      # Include the full left side of circle
+    right = int(width * 0.25)     # And the right side
+    
+    # Print dimensions for debugging
+    print(f"Image dimensions: {width}x{height}")
+    print(f"ROI dimensions: {right-left}x{bottom-top}")
     
     # Crop the image
     roi = img[top:bottom, left:right]
     
-    # Convert to HSV to handle the yellow background better
-    hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+    # Convert to grayscale
+    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
     
-    # Create a mask for the dark text
-    lower = np.array([0, 0, 0])
-    upper = np.array([180, 255, 100])
-    mask = cv2.inRange(hsv, lower, upper)
+    # Apply Gaussian blur to reduce noise
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
     
-    # Apply some morphological operations to clean up the text
-    kernel = np.ones((3,3), np.uint8)
-    mask = cv2.dilate(mask, kernel, iterations=1)
-    mask = cv2.erode(mask, kernel, iterations=1)
+    # Use adaptive thresholding to handle the varying background
+    thresh = cv2.adaptiveThreshold(
+        blurred,
+        255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY_INV,
+        11,
+        2
+    )
+    
+    # Clean up noise
+    kernel = np.ones((2,2), np.uint8)
+    mask = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+    
+    # Save additional debug image
+    cv2.imwrite('debug/gray.png', gray)
+    cv2.imwrite('debug/thresh.png', thresh)
     
     # Save debug images
     debug_folder = "debug"
@@ -53,8 +68,10 @@ def process_image(image_bytes):
     cv2.imwrite(f"{debug_folder}/roi.png", roi)
     cv2.imwrite(f"{debug_folder}/mask.png", mask)
     
-    # OCR with adjusted settings
-    number = pytesseract.image_to_string(mask, config='--psm 7 -c tessedit_char_whitelist=0123456789')
+    # OCR with improved settings for large digits
+    custom_config = r'--psm 10 --oem 3 -c tessedit_char_whitelist=0123456789'
+    number = pytesseract.image_to_string(mask, config=custom_config)
+    print(f"Raw OCR output: {number}")
     
     # Clean the result
     number = ''.join(filter(str.isdigit, number))
