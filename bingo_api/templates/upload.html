@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bingo Number Detector</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            text-align: center;
+            padding: 20px;
+        }
+        .upload-form {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .api-info {
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        code {
+            background: #eee;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Bingo Number Detector</h1>
+        
+        <div class="upload-form">
+            <h2>Upload Image</h2>
+            <form action="/upload" method="post" enctype="multipart/form-data">
+                <input type="file" name="file" accept="image/*" required>
+                <button type="submit">Detect Number</button>
+            </form>
+        </div>
+
+        <div class="api-info">
+            <h2>API Usage</h2>
+            <p>To use the API endpoint directly:</p>
+            <code>
+                POST /api/detect<br>
+                Content-Type: multipart/form-data<br>
+                Body: file=@your_image.png
+            </code>
+            <p>Example curl command:</p>
+            <code>
+                curl -X POST -F "file=@bingo.png" http://localhost:8000/api/detect
+            </code>
+        </div>
+    </div>
+</body>
+</html>

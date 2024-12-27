@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Detection Result</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .result {
+            font-size: 24px;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>Detection Result</h1>
+    {% if error %}
+        <div class="result error">
+            Error: {{ error }}
+        </div>
+    {% else %}
+        <div class="result">
+            Detected Number: {{ number }}
+        </div>
+    {% endif %}
+    <a href="/">Back to Upload</a>
+</body>
+</html>
