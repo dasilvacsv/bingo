@@ -25,15 +25,24 @@ def process_image(image_bytes):
     # Get dimensions
     height, width = img.shape[:2]
     
-    # Define the region for the big number (adjusted specifically for the circular display)
-    top = int(height * 0.02)     # Start higher up
-    bottom = int(height * 0.15)   # Just enough to capture the circle
-    left = int(width * 0.05)      # Include the full left side of circle
-    right = int(width * 0.25)     # And the right side
+    # Define the region for the big number (using measured coordinates)
+    top = int(height * 0.070)     # Measured exact position
+    bottom = int(height * 0.187)   # Measured exact position
+    left = int(width * 0.792)      # Measured exact position
+    right = int(width * 0.856)     # Measured exact position
     
     # Print dimensions for debugging
     print(f"Image dimensions: {width}x{height}")
     print(f"ROI dimensions: {right-left}x{bottom-top}")
+    print(f"ROI coordinates: ({left},{top}) to ({right},{bottom}")
+    
+    # Crop the image
+    roi = img[top:bottom, left:right]
+    
+    # Save the ROI for debugging
+    debug_folder = "debug"
+    os.makedirs(debug_folder, exist_ok=True)
+    cv2.imwrite(f"{debug_folder}/roi.png", roi)
     
     # Crop the image
     roi = img[top:bottom, left:right]
