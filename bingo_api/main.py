@@ -8,8 +8,35 @@ import numpy as np
 import pytesseract
 import io
 from PIL import Image
+from pydantic import BaseModel
+import json
+from typing import Optional
 
 app = FastAPI(title="Bingo Number Detector")
+
+# Add this class for calibration data
+class CalibrationData(BaseModel):
+    top: float
+    bottom: float
+    left: float
+    right: float
+
+# Global variable to store calibration
+calibration_file = "calibration.json"
+
+def get_calibration():
+    """Get current calibration or return default values"""
+    try:
+        with open(calibration_file, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {
+            "top": 0.070,
+            "bottom": 0.187,
+            "left": 0.792,
+            "right": 0.856
+        }
+
 
 # Templates configuration
 templates = Jinja2Templates(directory="templates")
@@ -42,15 +69,18 @@ def process_image(image_bytes):
     if img is None:
         raise ValueError("Could not process image")
     
-    # Get dimensions
+ # Get dimensions
     height, width = img.shape[:2]
     
-    # Define the region for the big number with padding
+    # Use custom calibration if provided, otherwise use stored/default calibration
+    calibration = custom_calibration if custom_calibration else get_calibration()
+    
+        # Define the region for the big number with padding
     pad = 5
-    top = max(0, int(height * 0.070) - pad)
-    bottom = min(height, int(height * 0.187) + pad)
-    left = max(0, int(width * 0.792) - pad)
-    right = min(width, int(width * 0.856) + pad)
+    top = max(0, int(height * calibration["top"]) - pad)
+    bottom = min(height, int(height * calibration["bottom"]) + pad)
+    left = max(0, int(width * calibration["left"]) - pad)
+    right = min(width, int(width * calibration["right"]) + pad)
     
     # Crop the image
     roi = img[top:bottom, left:right]
@@ -100,6 +130,11 @@ async def calibrate_page(request: Request):
         {"request": request}
     )
 
+@app.get("/api/get-calibration")
+async def get_current_calibration():
+    return get_calibration()
+
+
 @app.post("/api/upload-calibration")
 async def upload_calibration_image(file: UploadFile = File(...)):
     try:
@@ -116,6 +151,34 @@ async def upload_calibration_image(file: UploadFile = File(...)):
             content={"error": str(e)}
         )
 
+@app.post("/api/save-calibration")
+async def save_calibration(calibration: CalibrationData):
+    try:
+        with open(calibration_file, "w") as f:
+            json.dump(calibration.dict(), f)
+        return {"success": True}
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+
+
+@app.post("/api/test-calibration")
+async def test_calibration(
+    file: UploadFile = File(...),
+    calibration: Optional[dict] = None
+):
+    try:
+        contents = await file.read()
+        number = process_image(contents, calibration)
+        return {"number": number if number else "No number detected"}
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+        
 @app.post("/api/detect")
 async def detect_number(file: UploadFile = File(...)):
     try:
