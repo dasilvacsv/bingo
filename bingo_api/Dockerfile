@@ -16,8 +16,12 @@ RUN pip install -r requirements.txt
 # Copy application files
 COPY . .
 
-# Create templates directory
+# Create templates directory and data directory for calibration
 RUN mkdir -p templates
+RUN mkdir -p data
+
+# Create volume for persisting calibration data
+VOLUME /app/data
 
 # Expose port
 EXPOSE 8000

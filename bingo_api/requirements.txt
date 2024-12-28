@@ -6,3 +6,4 @@ numpy
 pytesseract
 Pillow
 jinja2
+pydantic

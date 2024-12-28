@@ -22,7 +22,7 @@ class CalibrationData(BaseModel):
     right: float
 
 # Global variable to store calibration
-calibration_file = "calibration.json"
+calibration_file = "data/calibration.json"
 
 def get_calibration():
     """Get current calibration or return default values"""
@@ -60,7 +60,7 @@ def format_number(number: str) -> str:
     except ValueError:
         return number
 
-def process_image(image_bytes):
+def process_image(image_bytes, custom_calibration: Optional[dict] = None):
     """Process image bytes to extract the bingo number."""
     # Convert bytes to numpy array
     nparr = np.frombuffer(image_bytes, np.uint8)
@@ -69,13 +69,13 @@ def process_image(image_bytes):
     if img is None:
         raise ValueError("Could not process image")
     
- # Get dimensions
+    # Get dimensions
     height, width = img.shape[:2]
     
     # Use custom calibration if provided, otherwise use stored/default calibration
     calibration = custom_calibration if custom_calibration else get_calibration()
     
-        # Define the region for the big number with padding
+    # Define the region for the big number with padding
     pad = 5
     top = max(0, int(height * calibration["top"]) - pad)
     bottom = min(height, int(height * calibration["bottom"]) + pad)
