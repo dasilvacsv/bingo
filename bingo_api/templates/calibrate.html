@@ -38,6 +38,23 @@
             margin: 5px;
             padding: 8px 16px;
         }
+        .test-result {
+            margin-top: 20px;
+            padding: 10px;
+            background: #e8e8e8;
+            border-radius: 4px;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+        .action-buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
@@ -46,6 +63,7 @@
     <div class="controls">
         <input type="file" id="imageInput" accept="image/*">
         <button onclick="resetPoints()">Reset Points</button>
+        <button onclick="loadCurrentCalibration()">Load Current Calibration</button>
     </div>
 
     <div class="container">
@@ -58,8 +76,15 @@
                 <li>Upload an image</li>
                 <li>Click to set the top-left corner</li>
                 <li>Click to set the bottom-right corner</li>
+                <li>Test the calibration</li>
+                <li>Save if satisfied</li>
             </ol>
             <div class="coordinates" id="coordinates"></div>
+            <div class="action-buttons">
+                <button onclick="testCalibration()">Test Calibration</button>
+                <button onclick="saveCalibration()">Save Calibration</button>
+            </div>
+            <div id="testResult" class="test-result" style="display: none;"></div>
         </div>
     </div>
 
@@ -68,6 +93,34 @@
         let ctx = canvas.getContext('2d');
         let points = [];
         let image = null;
+        let currentCalibration = null;
+
+        // Load current calibration on page load
+        loadCurrentCalibration();
+
+        async function loadCurrentCalibration() {
+            try {
+                const response = await fetch('/api/get-calibration');
+                currentCalibration = await response.json();
+                if (image && currentCalibration) {
+                    // Convert calibration to points
+                    points = [
+                        {
+                            x: currentCalibration.left * canvas.width,
+                            y: currentCalibration.top * canvas.height
+                        },
+                        {
+                            x: currentCalibration.right * canvas.width,
+                            y: currentCalibration.bottom * canvas.height
+                        }
+                    ];
+                    redrawCanvas();
+                    calculateRegion();
+                }
+            } catch (error) {
+                console.error('Error loading calibration:', error);
+            }
+        }
 
         // Handle image upload
         document.getElementById('imageInput').addEventListener('change', function(e) {
@@ -80,6 +133,20 @@
                     canvas.width = image.width;
                     canvas.height = image.height;
                     redrawCanvas();
+                    if (currentCalibration) {
+                        points = [
+                            {
+                                x: currentCalibration.left * canvas.width,
+                                y: currentCalibration.top * canvas.height
+                            },
+                            {
+                                x: currentCalibration.right * canvas.width,
+                                y: currentCalibration.bottom * canvas.height
+                            }
+                        ];
+                        redrawCanvas();
+                        calculateRegion();
+                    }
                 };
                 image.src = event.target.result;
             };
@@ -141,7 +208,23 @@
             }
         }
 
+        function getCurrentCalibration() {
+            if (points.length !== 2) return null;
+            
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            return {
+                left: Math.min(points[0].x, points[1].x) / width,
+                right: Math.max(points[0].x, points[1].x) / width,
+                top: Math.min(points[0].y, points[1].y) / height,
+                bottom: Math.max(points[0].y, points[1].y) / height
+            };
+        }
+
         function calculateRegion() {
+            if (points.length !== 2) return;
+            
             const width = canvas.width;
             const height = canvas.height;
             
@@ -150,24 +233,95 @@
             const x2 = points[1].x;
             const y2 = points[1].y;
             
+            const calibration = getCurrentCalibration();
+            
             const coordinates = document.getElementById('coordinates');
             coordinates.innerHTML = `Selected Region:
-Top-left: (${Math.min(x1, x2)}, ${Math.min(y1, y2)})
-Bottom-right: (${Math.max(x1, x2)}, ${Math.max(y1, y2)})
-Width: ${Math.abs(x2 - x1)}
-Height: ${Math.abs(y2 - y1)}
+Top-left: (${Math.min(x1, x2).toFixed(0)}, ${Math.min(y1, y2).toFixed(0)})
+Bottom-right: (${Math.max(x1, x2).toFixed(0)}, ${Math.max(y1, y2).toFixed(0)})
+Width: ${Math.abs(x2 - x1).toFixed(0)}
+Height: ${Math.abs(y2 - y1).toFixed(0)}
 
-For the script:
-left = int(width * ${(Math.min(x1, x2)/width).toFixed(3)})
-right = int(width * ${(Math.max(x1, x2)/width).toFixed(3)})
-top = int(height * ${(Math.min(y1, y2)/height).toFixed(3)})
-bottom = int(height * ${(Math.max(y1, y2)/height).toFixed(3)})`;
+Calibration Values:
+left: ${calibration.left.toFixed(3)}
+right: ${calibration.right.toFixed(3)}
+top: ${calibration.top.toFixed(3)}
+bottom: ${calibration.bottom.toFixed(3)}`;
+        }
+
+        async function testCalibration() {
+            const calibration = getCurrentCalibration();
+            if (!calibration || !image) {
+                alert('Please select a region and upload an image first');
+                return;
+            }
+
+            const imageInput = document.getElementById('imageInput');
+            if (!imageInput.files[0]) {
+                alert('Please select an image first');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', imageInput.files[0]);
+
+            try {
+                const response = await fetch('/api/test-calibration', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                
+                const testResult = document.getElementById('testResult');
+                testResult.style.display = 'block';
+                if (result.number) {
+                    testResult.innerHTML = `Detected Number: ${result.number}`;
+                    testResult.className = 'test-result success';
+                } else {
+                    testResult.innerHTML = 'No number detected';
+                    testResult.className = 'test-result error';
+                }
+            } catch (error) {
+                console.error('Error testing calibration:', error);
+                const testResult = document.getElementById('testResult');
+                testResult.style.display = 'block';
+                testResult.innerHTML = `Error: ${error.message}`;
+                testResult.className = 'test-result error';
+            }
+        }
+
+        async function saveCalibration() {
+            const calibration = getCurrentCalibration();
+            if (!calibration) {
+                alert('Please select a region first');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/save-calibration', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(calibration)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Calibration saved successfully!');
+                } else {
+                    alert('Error saving calibration');
+                }
+            } catch (error) {
+                console.error('Error saving calibration:', error);
+                alert('Error saving calibration: ' + error.message);
+            }
         }
 
         function resetPoints() {
             points = [];
             redrawCanvas();
             document.getElementById('coordinates').innerHTML = '';
+            document.getElementById('testResult').style.display = 'none';
         }
     </script>
 </body>
