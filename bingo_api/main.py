@@ -14,6 +14,25 @@ app = FastAPI(title="Bingo Number Detector")
 # Templates configuration
 templates = Jinja2Templates(directory="templates")
 
+def format_number(number: str) -> str:
+    """Format a number with its BINGO letter prefix."""
+    try:
+        num = int(number)
+        if 1 <= num <= 15:
+            return f"B{num}"
+        elif 16 <= num <= 30:
+            return f"I{num}"
+        elif 31 <= num <= 45:
+            return f"N{num}"
+        elif 46 <= num <= 60:
+            return f"G{num}"
+        elif 61 <= num <= 75:
+            return f"O{num}"
+        else:
+            return number
+    except ValueError:
+        return number
+
 def process_image(image_bytes):
     """Process image bytes to extract the bingo number."""
     # Convert bytes to numpy array
@@ -26,12 +45,8 @@ def process_image(image_bytes):
     # Get dimensions
     height, width = img.shape[:2]
     
-    # Create debug folder once
-    debug_folder = "debug"
-    os.makedirs(debug_folder, exist_ok=True)
-    
     # Define the region for the big number with padding
-    pad = 5  # pixels of padding
+    pad = 5
     top = max(0, int(height * 0.070) - pad)
     bottom = min(height, int(height * 0.187) + pad)
     left = max(0, int(width * 0.792) - pad)
@@ -39,11 +54,9 @@ def process_image(image_bytes):
     
     # Crop the image
     roi = img[top:bottom, left:right]
-    cv2.imwrite(f"{debug_folder}/01_roi.png", roi)
     
     # Convert to grayscale
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-    cv2.imwrite(f"{debug_folder}/02_gray.png", gray)
     
     # Apply adaptive thresholding
     binary = cv2.adaptiveThreshold(
@@ -51,26 +64,16 @@ def process_image(image_bytes):
         255,
         cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
         cv2.THRESH_BINARY_INV,
-        11,  # Block size
-        2    # C constant
+        11,
+        2
     )
-    cv2.imwrite(f"{debug_folder}/03_binary.png", binary)
     
-    # Apply morphological operations to clean up the image
-    kernel = np.ones((2,2), np.uint8)
-    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
-    binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
-    cv2.imwrite(f"{debug_folder}/04_morph.png", binary)
-    
-    # OCR Configuration for large, clear digits
+    # OCR Configuration
     custom_config = r'--psm 7 --oem 3 -c tessedit_char_whitelist=0123456789'
     
-    # Try OCR on both the original grayscale and the binary image
+    # Try OCR on both images
     number_gray = pytesseract.image_to_string(gray, config=custom_config).strip()
     number_binary = pytesseract.image_to_string(binary, config=custom_config).strip()
-    
-    print(f"Grayscale OCR result: {number_gray}")
-    print(f"Binary OCR result: {number_binary}")
     
     # Use the result that gives us digits
     number = ''
@@ -79,8 +82,9 @@ def process_image(image_bytes):
         if cleaned:
             number = cleaned
             break
-    
-    return number
+
+    # Format the number with BINGO letter and return
+    return format_number(number) if number else ""
     
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
