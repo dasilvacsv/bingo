@@ -93,6 +93,29 @@ async def home(request: Request):
         {"request": request}
     )
 
+@app.get("/calibrate", response_class=HTMLResponse)
+async def calibrate_page(request: Request):
+    return templates.TemplateResponse(
+        "calibrate.html",
+        {"request": request}
+    )
+
+@app.post("/api/upload-calibration")
+async def upload_calibration_image(file: UploadFile = File(...)):
+    try:
+        contents = await file.read()
+        # Store the image temporarily or in memory
+        # Return a success response with the image data
+        return {
+            "success": True,
+            "image": contents.decode('latin1')  # Encode binary data for frontend
+        }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+
 @app.post("/api/detect")
 async def detect_number(file: UploadFile = File(...)):
     try:
