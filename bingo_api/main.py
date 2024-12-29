@@ -23,6 +23,11 @@ class CalibrationData(BaseModel):
     left: float
     right: float
 
+# Create a Pydantic model for the request body
+class WhatsAppRequest(BaseModel):
+    number: str
+    detected_number: str
+
 # Global variable to store calibration
 calibration_file = "data/calibration.json"
 WHATSAPP_API_URL = "http://46.202.150.164:8080/message/sendText/hgghi"
@@ -237,11 +242,13 @@ async def upload_file(
 
 # Add this new endpoint to handle WhatsApp sending
 @app.post("/api/send-whatsapp")
-async def send_whatsapp(number: str, detected_number: str):
+async def send_whatsapp(request: WhatsAppRequest):
     try:
-        message = f"Salió la ficha {detected_number}"
+        print(f"Received request with number: {request.number} and detected_number: {request.detected_number}")
+        
+        message = f"Salió la ficha {request.detected_number}"
         payload = {
-            "number": number,
+            "number": request.number,
             "options": {
                 "delay": 6000,
                 "presence": "composing",
@@ -257,21 +264,27 @@ async def send_whatsapp(number: str, detected_number: str):
             "textMessage": {"text": message}
         }
         
+        print(f"Sending payload: {json.dumps(payload, indent=2)}")
+        
         headers = {
             "apikey": WHATSAPP_API_KEY,
             "Content-Type": "application/json"
         }
         
+        print(f"Sending request to URL: {WHATSAPP_API_URL}")
         response = requests.post(WHATSAPP_API_URL, json=payload, headers=headers)
+        print(f"Response status code: {response.status_code}")
+        print(f"Response content: {response.text}")
+        
         response.raise_for_status()
         
         return {"success": True, "message": "WhatsApp message sent successfully"}
     except Exception as e:
+        print(f"Error sending WhatsApp message: {str(e)}")
         return JSONResponse(
             status_code=500,
             content={"error": f"Failed to send WhatsApp message: {str(e)}"}
         )
-
 
 if __name__ == "__main__":
     import uvicorn

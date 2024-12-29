@@ -74,6 +74,11 @@
             button.disabled = true;
             
             try {
+                console.log('Sending request with data:', {
+                    number: '{{ phone }}',
+                    detected_number: '{{ number }}'
+                });
+                
                 const response = await fetch('/api/send-whatsapp', {
                     method: 'POST',
                     headers: {
@@ -85,7 +90,9 @@
                     })
                 });
                 
+                console.log('Response status:', response.status);
                 const data = await response.json();
+                console.log('Response data:', data);
                 
                 if (response.ok) {
                     statusMessage.textContent = 'Message sent successfully!';
@@ -94,6 +101,7 @@
                     throw new Error(data.error || 'Failed to send message');
                 }
             } catch (error) {
+                console.error('Error:', error);
                 statusMessage.textContent = `Error: ${error.message}`;
                 statusMessage.className = 'status-message failure';
                 button.disabled = false;
