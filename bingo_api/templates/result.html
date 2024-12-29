@@ -67,6 +67,13 @@
     {% endif %}
     <a href="/">Back to Upload</a>
 
+    <!-- In the result section of result.html -->
+{% if whatsapp_status %}
+<div class="status-message {% if 'Failed' in whatsapp_status %}failure{% else %}success{% endif %}">
+    {{ whatsapp_status }}
+</div>
+{% endif %}
+
     <script>
         async function sendToWhatsapp() {
             const button = document.getElementById('whatsappButton');

@@ -29,6 +29,10 @@
             padding: 2px 5px;
             border-radius: 3px;
         }
+        .checkbox-container {
+            margin: 15px 0;
+            text-align: left;
+        }
     </style>
 </head>
 <body>
@@ -38,6 +42,10 @@
         <div class="upload-form">
             <h2>Upload Image</h2>
             <form action="/upload" method="post" enctype="multipart/form-data">
+                <div class="checkbox-container">
+                    <input type="checkbox" id="autosend" name="autosend">
+                    <label for="autosend">Automatically send WhatsApp message</label>
+                </div>
                 <input type="file" name="file" accept="image/*" required>
                 <button type="submit">Detect Number</button>
             </form>

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, Request
+from fastapi import FastAPI, File, UploadFile, Request, Form
 import os
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -217,18 +217,34 @@ async def detect_number(file: UploadFile = File(...)):
 async def upload_file(
     request: Request, 
     file: UploadFile = File(...),
-    phone: Optional[str] = DEFAULT_PHONE
+    phone: Optional[str] = DEFAULT_PHONE,
+    autosend: Optional[bool] = Form(False)  # Add this parameter
 ):
     try:
         contents = await file.read()
         number = process_image(contents)
+        
+        whatsapp_status = None
+        if autosend and number:
+            try:
+                # Create WhatsApp request
+                whatsapp_req = WhatsAppRequest(
+                    number=phone,
+                    detected_number=number
+                )
+                # Send WhatsApp message
+                await send_whatsapp(whatsapp_req)
+                whatsapp_status = "Message sent successfully!"
+            except Exception as e:
+                whatsapp_status = f"Failed to send WhatsApp message: {str(e)}"
         
         return templates.TemplateResponse(
             "result.html",
             {
                 "request": request,
                 "number": number if number else "No number detected",
-                "phone": phone
+                "phone": phone,
+                "whatsapp_status": whatsapp_status
             }
         )
     except Exception as e:
@@ -239,7 +255,6 @@ async def upload_file(
                 "error": str(e)
             }
         )
-
 # Add this new endpoint to handle WhatsApp sending
 @app.post("/api/send-whatsapp")
 async def send_whatsapp(request: WhatsAppRequest):
