@@ -19,6 +19,30 @@
         .error {
             color: red;
         }
+        .whatsapp-button {
+            background-color: #25D366;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        .whatsapp-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .status-message {
+            margin-top: 10px;
+            padding: 10px;
+        }
+        .success {
+            color: green;
+        }
+        .failure {
+            color: red;
+        }
     </style>
 </head>
 <body>
@@ -31,7 +55,50 @@
         <div class="result">
             Detected Number: {{ number }}
         </div>
+        <button 
+            id="whatsappButton" 
+            class="whatsapp-button"
+            onclick="sendToWhatsapp()"
+            {% if not number %}disabled{% endif %}
+        >
+            Send to WhatsApp
+        </button>
+        <div id="statusMessage" class="status-message"></div>
     {% endif %}
     <a href="/">Back to Upload</a>
+
+    <script>
+        async function sendToWhatsapp() {
+            const button = document.getElementById('whatsappButton');
+            const statusMessage = document.getElementById('statusMessage');
+            button.disabled = true;
+            
+            try {
+                const response = await fetch('/api/send-whatsapp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        number: '{{ phone }}',
+                        detected_number: '{{ number }}'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    statusMessage.textContent = 'Message sent successfully!';
+                    statusMessage.className = 'status-message success';
+                } else {
+                    throw new Error(data.error || 'Failed to send message');
+                }
+            } catch (error) {
+                statusMessage.textContent = `Error: ${error.message}`;
+                statusMessage.className = 'status-message failure';
+                button.disabled = false;
+            }
+        }
+    </script>
 </body>
 </html>

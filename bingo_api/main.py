@@ -11,6 +11,8 @@ from PIL import Image
 from pydantic import BaseModel
 import json
 from typing import Optional
+import requests
+
 
 app = FastAPI(title="Bingo Number Detector")
 
@@ -23,6 +25,10 @@ class CalibrationData(BaseModel):
 
 # Global variable to store calibration
 calibration_file = "data/calibration.json"
+WHATSAPP_API_URL = "http://46.202.150.164:8080/message/sendText/hgghi"
+WHATSAPP_API_KEY = "mude-me"  # Replace with your actual API key
+DEFAULT_PHONE = "584128264642"  # Default phone number
+
 
 def get_calibration():
     """Get current calibration or return default values"""
@@ -203,7 +209,11 @@ async def detect_number(file: UploadFile = File(...)):
         )
 
 @app.post("/upload")
-async def upload_file(request: Request, file: UploadFile = File(...)):
+async def upload_file(
+    request: Request, 
+    file: UploadFile = File(...),
+    phone: Optional[str] = DEFAULT_PHONE
+):
     try:
         contents = await file.read()
         number = process_image(contents)
@@ -212,7 +222,8 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
             "result.html",
             {
                 "request": request,
-                "number": number if number else "No number detected"
+                "number": number if number else "No number detected",
+                "phone": phone
             }
         )
     except Exception as e:
@@ -223,6 +234,44 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
                 "error": str(e)
             }
         )
+
+# Add this new endpoint to handle WhatsApp sending
+@app.post("/api/send-whatsapp")
+async def send_whatsapp(number: str, detected_number: str):
+    try:
+        message = f"Salió la ficha {detected_number}"
+        payload = {
+            "number": number,
+            "options": {
+                "delay": 6000,
+                "presence": "composing",
+                "linkPreview": False,
+                "quoted": {
+                    "key": {
+                        "fromMe": True,
+                        "remoteJid": "58",
+                        "id": "1"
+                    }
+                }
+            },
+            "textMessage": {"text": message}
+        }
+        
+        headers = {
+            "apikey": WHATSAPP_API_KEY,
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.post(WHATSAPP_API_URL, json=payload, headers=headers)
+        response.raise_for_status()
+        
+        return {"success": True, "message": "WhatsApp message sent successfully"}
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Failed to send WhatsApp message: {str(e)}"}
+        )
+
 
 if __name__ == "__main__":
     import uvicorn
